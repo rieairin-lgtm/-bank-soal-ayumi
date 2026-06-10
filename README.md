@@ -41,13 +41,18 @@ Itulah alamat yang dibagikan ke murid. Halaman guru ada di `.../bank-soal-ayumi/
 4. Di GitHub: buka folder **data** → klik **Add file → Upload files** → unggah `soal.json` yang baru → **Commit changes** (file lama otomatis tertimpa).
 5. Tunggu ±1 menit — soal baru langsung tampil di halaman murid.
 
-## Alur ujian murid
+## Alur ujian (lewat link dari guru)
 
-Murid membuka alamat utama → tulis nama → pilih level/kategori/jumlah soal → kerjakan → nilai muncul otomatis → kirim hasil ke guru lewat tombol **WhatsApp** / **Salin hasil** / screenshot → pembahasan tampil setelah dikumpulkan.
+1. Guru membuka `guru.html` → masukkan **PIN guru** (bawaan: `ayumi123` — ganti di `data/config.json`).
+2. Di kartu **🔗 Buat Link Ujian**, pilih judul, level, kategori, jumlah soal, acak, dan apakah pembahasan ditampilkan → klik **Buat link** → salin/kirim via WhatsApp.
+3. Murid membuka **link tersebut** (halaman utama tanpa link hanya menampilkan pesan "minta link dari guru") → tulis nama → kerjakan → nilai muncul otomatis → kirim hasil ke guru via WhatsApp/salin/screenshot.
+
+### Mengganti PIN guru
+Buka file `data/config.json` di GitHub → klik ikon pensil (Edit) → ubah nilai `pinGuru` → Commit changes.
 
 ## Hal yang perlu diketahui
 
-- **Kunci jawaban ada di `soal.json`** yang bersifat publik. Murid yang paham teknis bisa melihatnya — gunakan untuk latihan/kuis, bukan ujian berisiko tinggi.
+- PIN dan token link adalah pengaman praktis untuk kelas, bukan keamanan tingkat tinggi — **kunci jawaban tetap ada di `soal.json`** yang bersifat publik. Murid yang paham teknis bisa melihatnya — gunakan untuk latihan/kuis, bukan ujian berisiko tinggi.
 - **Nilai tidak tersimpan di server** (GitHub Pages tidak punya database). Rekap dilakukan dari laporan WhatsApp/screenshot murid. Bila kelak butuh rekap otomatis, bisa ditambah integrasi Google Sheets/Apps Script.
 - Soal dengan **gambar** (pilihan bergambar untuk 聴解 dsb.) diinput lewat `guru.html`; gambar otomatis dikompres dan tersimpan di dalam `soal.json`.
 - Draf di halaman guru tersimpan di browser (localStorage) — gunakan **📂 Muat soal.json** untuk melanjutkan pekerjaan di perangkat lain.

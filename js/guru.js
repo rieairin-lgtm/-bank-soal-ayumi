@@ -2,6 +2,9 @@ var H = ["A", "B", "C", "D"];
 var LEVELS = ["N5", "N4", "N3", "N2", "N1"];
 var KATEGORI = ["文字・語彙", "文法", "読解", "聴解"];
 var KUNCI_LS = "bsa-soal-draf";
+var SALT = "ayumi-sakura-2026";
+var PIN_GURU = "ayumi123";
+function hsh(s) { var h = 5381; for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; } return h.toString(36); }
 var soal = [];
 var editId = null;
 var formGambar = null;
@@ -28,8 +31,37 @@ function kompres(file, cb) {
   r.readAsDataURL(file);
 }
 
+// --- Gerbang PIN guru ---
+(function gerbang() {
+  fetch("data/config.json?v=" + Date.now())
+    .then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (c) { if (c && c.pinGuru) PIN_GURU = String(c.pinGuru); })
+    .catch(function () {})
+    .then(function () {
+      if (sessionStorage.getItem("bsa-guru-ok") === hsh(PIN_GURU + SALT)) { init(); return; }
+      el("app").innerHTML = '<div class="card tengah" style="max-width:380px;margin:40px auto">' +
+        '<div style="font-size:36px;margin-bottom:6px">🔒</div>' +
+        '<h3 style="color:#9d2f5e;margin-bottom:4px">Khusus guru</h3>' +
+        '<p class="muted" style="margin-bottom:12px">Masukkan PIN untuk membuka halaman pengelolaan soal.</p>' +
+        '<input type="password" id="pinIn" placeholder="PIN" style="text-align:center;margin-bottom:10px">' +
+        '<button class="btn btn-pink" style="width:100%" onclick="cekPin()">Buka</button></div>';
+      var inp = el("pinIn");
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") cekPin(); });
+      inp.focus();
+    });
+})();
+
+function cekPin() {
+  if (el("pinIn").value === PIN_GURU) {
+    sessionStorage.setItem("bsa-guru-ok", hsh(PIN_GURU + SALT));
+    init();
+  } else {
+    toast("PIN salah");
+  }
+}
+
 // Muat: draf di browser > soal.json yang dipublikasikan
-(function init() {
+function init() {
   var draf = null;
   try { draf = localStorage.getItem(KUNCI_LS); } catch (e) {}
   if (draf) {
@@ -41,7 +73,7 @@ function kompres(file, cb) {
       .then(function (d) { soal = d || []; render(); })
       .catch(function () { soal = []; render(); });
   }
-})();
+}
 
 function selectHtml(id, daftar, terpilih) {
   var h = '<select id="' + id + '">';
@@ -54,6 +86,21 @@ function render() {
   var f = ambilForm();
   var h = '<div class="card" style="background:#fff7fb">' +
     '<b style="color:#9d2f5e">Alur kerja:</b> <span class="muted">tambah/ubah soal di bawah → klik <b>💾 Unduh soal.json</b> → ganti file <code>data/soal.json</code> di repository GitHub → tunggu ±1 menit, soal baru tampil di halaman murid.</span></div>';
+
+  // --- Buat Link Ujian ---
+  h += '<div class="card" style="border-color:#db2777"><h3 style="margin-bottom:4px;color:#9d2f5e">🔗 Buat Link Ujian</h3>' +
+    '<p class="muted" style="margin-bottom:10px">Murid hanya bisa mengerjakan lewat link yang dibuat di sini. Pilih cakupan, lalu bagikan link-nya.</p>' +
+    '<div class="row" style="margin-bottom:10px">' +
+    '<div><label>Judul ujian (opsional)</label><input type="text" id="lJudul" placeholder="mis. Ujian Tengah Semester N4"></div></div>' +
+    '<div class="row" style="margin-bottom:10px">' +
+    '<div><label>Level</label><select id="lLevel"><option>Semua</option><option>N5</option><option selected>N4</option><option>N3</option><option>N2</option><option>N1</option></select></div>' +
+    '<div><label>Kategori</label><select id="lKat"><option>Semua</option><option>文字・語彙</option><option>文法</option><option>読解</option><option>聴解</option></select></div>' +
+    '<div><label>Jumlah soal</label><select id="lJml"><option>Semua</option><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option></select></div></div>' +
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">' +
+    '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569"><input type="checkbox" id="lAcak" checked style="width:16px;height:16px;accent-color:#db2777">Acak urutan soal</label>' +
+    '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569"><input type="checkbox" id="lPb" checked style="width:16px;height:16px;accent-color:#db2777">Tampilkan pembahasan setelah selesai</label></div>' +
+    '<button class="btn btn-pink" onclick="buatLink()">Buat link</button>' +
+    '<div id="hasilLink" style="margin-top:10px"></div></div>';
 
   // --- Form ---
   h += '<div class="card"><h3 style="margin-bottom:10px">' + (editId ? "Edit soal" : "Tambah soal baru") + "</h3>" +
@@ -265,4 +312,42 @@ function imporExcel(inp) {
   };
   r.readAsArrayBuffer(f);
   inp.value = "";
+}
+
+
+function buatLink() {
+  var cfg = {
+    judul: el("lJudul").value.trim(),
+    lv: el("lLevel").value,
+    kt: el("lKat").value,
+    jml: el("lJml").value,
+    acak: el("lAcak").checked,
+    pb: el("lPb").checked
+  };
+  var jumlahCocok = soal.filter(function (s) {
+    return (cfg.lv === "Semua" || s.level === cfg.lv) && (cfg.kt === "Semua" || s.kategori === cfg.kt);
+  }).length;
+  var b = btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))).replace(/=+$/, "");
+  var token = b + "." + hsh(b + SALT);
+  var url = new URL("index.html", location.href).href + "?u=" + encodeURIComponent(token);
+  el("hasilLink").innerHTML =
+    '<div style="background:#fdf2f7;border:1px solid #f3b8d2;border-radius:8px;padding:10px">' +
+    '<div class="muted" style="margin-bottom:6px">' + (jumlahCocok ? jumlahCocok + " soal cocok di draf saat ini (pastikan soal.json di GitHub sudah terbaru)" : "⚠ Belum ada soal yang cocok di draf — link tetap dibuat, tapi murid tidak bisa mulai sebelum soal.json diperbarui") + "</div>" +
+    '<input type="text" id="urlUjian" readonly value="' + url.replace(/"/g, "&quot;") + '" style="margin-bottom:8px;font-size:12px">' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+    '<button class="btn btn-pink btn-kecil" onclick="salinLink()">Salin link</button>' +
+    '<a class="btn btn-putih btn-kecil" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent((cfg.judul ? cfg.judul + "\n" : "") + "Link ujian Ayumi:\n" + url) + '">Kirim via WhatsApp</a>' +
+    '<a class="btn btn-putih btn-kecil" target="_blank" rel="noopener" href="' + url.replace(/"/g, "&quot;") + '">Coba buka</a>' +
+    "</div></div>";
+}
+
+function salinLink() {
+  var inp = el("urlUjian");
+  inp.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(inp.value).then(function () { toast("Link tersalin"); });
+  } else {
+    document.execCommand("copy");
+    toast("Link tersalin");
+  }
 }

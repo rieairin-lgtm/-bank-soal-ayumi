@@ -1,59 +1,73 @@
 var H = ["A", "B", "C", "D"];
-var LEVELS = ["N5", "N4", "N3", "N2", "N1"];
-var KATEGORI = ["文字・語彙", "文法", "読解", "聴解"];
-var BANK = [], soal = [], jwb = {}, nama = "", CAK = "Semua / Semua";
+var SALT = "ayumi-sakura-2026";
+var BANK = [], soal = [], jwb = {}, nama = "";
+var CFG = null;
 
 function eh(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function acak(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 function el(id) { return document.getElementById(id); }
+function hsh(s) { var h = 5381; for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; } return h.toString(36); }
 
-fetch("data/soal.json?v=" + Date.now())
-  .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-  .then(function (d) { BANK = d; el("subjudul").textContent = BANK.length + " soal tersedia"; renderAwal(); })
-  .catch(function () {
-    el("app").innerHTML = '<div class="card">Gagal memuat <b>data/soal.json</b>. Pastikan file tersebut ada di folder <code>data/</code> repository dan halaman dibuka lewat alamat GitHub Pages (bukan dibuka langsung dari file).</div>';
+// --- Baca link ujian dari guru (?u=token) ---
+(function bacaToken() {
+  try {
+    var u = new URLSearchParams(location.search).get("u");
+    if (!u) return;
+    var bagian = u.split(".");
+    if (bagian.length !== 2) return;
+    if (hsh(bagian[0] + SALT) !== bagian[1]) return;
+    CFG = JSON.parse(decodeURIComponent(escape(atob(bagian[0]))));
+  } catch (e) { CFG = null; }
+})();
+
+if (!CFG) {
+  el("subjudul").textContent = "問題バンク";
+  el("app").innerHTML =
+    '<div class="card tengah" style="padding:34px 18px">' +
+    '<div style="font-size:44px;margin-bottom:8px">🌸🔗</div>' +
+    '<h2 style="margin-bottom:6px;color:#9d2f5e">Halaman ujian dibuka lewat link dari guru</h2>' +
+    '<p class="muted">Minta link ujian (misalnya ujian N4 文法) kepada gurumu, lalu buka link tersebut untuk mulai mengerjakan.</p></div>';
+} else {
+  fetch("data/soal.json?v=" + Date.now())
+    .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+    .then(function (d) { BANK = d; renderAwal(); })
+    .catch(function () {
+      el("app").innerHTML = '<div class="card">Gagal memuat soal. Coba muat ulang halaman, atau hubungi gurumu.</div>';
+    });
+}
+
+function pool() {
+  return BANK.filter(function (s) {
+    return (CFG.lv === "Semua" || s.level === CFG.lv) && (CFG.kt === "Semua" || s.kategori === CFG.kt);
   });
+}
 
-function opsiSelect(id, daftar) {
-  var h = '<select id="' + id + '"><option>Semua</option>';
-  for (var i = 0; i < daftar.length; i++) h += "<option>" + daftar[i] + "</option>";
-  return h + "</select>";
+function infoCakupan() {
+  return (CFG.lv === "Semua" ? "Semua level" : CFG.lv) + " · " + (CFG.kt === "Semua" ? "Semua kategori" : CFG.kt);
 }
 
 function renderAwal() {
-  var h = '<div class="card"><h2 style="margin-bottom:4px">Kerjakan ujian</h2>' +
-    '<p class="muted" style="margin-bottom:14px">Tulis nama, pilih cakupan soal, lalu klik Mulai. Nilai dihitung otomatis di akhir.</p>' +
-    '<label>Nama peserta</label><input type="text" id="nm" placeholder="Nama lengkap" style="margin-bottom:12px">' +
-    '<div class="row" style="margin-bottom:12px">' +
-    '<div><label>Level</label>' + opsiSelect("fLevel", LEVELS) + "</div>" +
-    '<div><label>Kategori</label>' + opsiSelect("fKat", KATEGORI) + "</div>" +
-    '<div><label>Jumlah soal</label><select id="fJml"><option>Semua</option><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option></select></div>' +
-    "</div>" +
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">' +
-    '<span class="muted" id="ket"></span>' +
-    '<button class="btn btn-pink" onclick="mulai()">Mulai</button></div></div>';
+  var p = pool();
+  var jml = CFG.jml === "Semua" ? p.length : Math.min(parseInt(CFG.jml, 10), p.length);
+  el("subjudul").textContent = CFG.judul || "Ujian Bahasa Jepang";
+  var h = '<div class="card">' +
+    '<h2 style="margin-bottom:4px;color:#9d2f5e">' + eh(CFG.judul || "Ujian Bahasa Jepang") + "</h2>" +
+    '<p class="muted" style="margin-bottom:12px">' + infoCakupan() + " · " + jml + ' soal · pilihan ganda</p>' +
+    (p.length ? (
+      '<label>Nama peserta</label><input type="text" id="nm" placeholder="Nama lengkap" style="margin-bottom:14px">' +
+      '<div style="text-align:right"><button class="btn btn-pink" onclick="mulai()">Mulai ujian</button></div>'
+    ) : '<p class="muted">Belum ada soal untuk cakupan ini. Hubungi gurumu ya.</p>') +
+    "</div>";
   el("app").innerHTML = h;
-  el("fLevel").onchange = el("fKat").onchange = hitung;
-  hitung();
 }
-
-function tersaring() {
-  var lv = el("fLevel").value, kt = el("fKat").value;
-  return BANK.filter(function (s) { return (lv === "Semua" || s.level === lv) && (kt === "Semua" || s.kategori === kt); });
-}
-
-function hitung() { el("ket").textContent = "Tersedia " + tersaring().length + " soal sesuai filter"; }
 
 function mulai() {
   var n = el("nm").value.trim();
   if (!n) { alert("Tulis nama dulu ya"); return; }
-  var pool = tersaring();
-  if (!pool.length) { alert("Tidak ada soal yang cocok dengan filter"); return; }
   nama = n;
-  CAK = el("fLevel").value + " / " + el("fKat").value;
-  soal = acak(pool.slice());
-  var jml = el("fJml").value;
-  if (jml !== "Semua") soal = soal.slice(0, parseInt(jml, 10));
+  var p = pool();
+  soal = CFG.acak ? acak(p.slice()) : p.slice();
+  if (CFG.jml !== "Semua") soal = soal.slice(0, parseInt(CFG.jml, 10));
   jwb = {};
   renderUjian();
   window.scrollTo(0, 0);
@@ -114,8 +128,8 @@ function renderHasil() {
   for (var i = 0; i < soal.length; i++) if (jwb[i] === soal[i].kunci) benar++;
   var nilai = Math.round((benar / soal.length) * 100);
   var tgl = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-  var ring = "HASIL UJIAN AYUMI\nNama: " + nama + "\nTanggal: " + tgl +
-    "\nCakupan: " + CAK +
+  var ring = "HASIL UJIAN AYUMI\n" + (CFG.judul ? "Ujian: " + CFG.judul + "\n" : "") +
+    "Nama: " + nama + "\nTanggal: " + tgl + "\nCakupan: " + infoCakupan() +
     "\nBenar: " + benar + "/" + soal.length + "\nNilai: " + nilai;
   var warna = nilai >= 70 ? "hij" : nilai >= 50 ? "kun" : "mer";
   var h = '<div class="card tengah"><div class="eyebrow" style="color:#9d2f5e">Hasil — ' + eh(nama) + "</div>" +
@@ -124,20 +138,23 @@ function renderHasil() {
     '<pre class="ring" id="ring">' + eh(ring) + "</pre>" +
     '<div style="margin-top:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">' +
     '<button class="btn btn-pink" onclick="salin()">Salin hasil</button>' +
-    '<a class="btn btn-tua" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(ring) + '">Kirim via WhatsApp</a>' +
-    '<button class="btn btn-putih" onclick="renderAwal()">Selesai</button></div>' +
+    '<a class="btn btn-tua" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(ring) + '">Kirim via WhatsApp</a></div>' +
     '<div class="muted" style="margin-top:8px">Kirim atau screenshot hasil ini untuk gurumu ya 🌸</div></div>';
-  h += '<h3 style="margin:14px 0 10px;color:#9d2f5e">Pembahasan</h3>';
-  for (var i = 0; i < soal.length; i++) {
-    var q = soal[i], b = jwb[i] === q.kunci;
-    h += '<div class="card"><div class="qno">問' + (i + 1) +
-      '<span class="tag ' + (b ? "tag-b" : "tag-s") + '">' + (b ? "✓ Benar" : jwb[i] === undefined ? "— Tidak dijawab" : "✕ Salah") + "</span></div>" +
-      '<div class="qtxt">' + eh(q.pertanyaan) + "</div>";
-    if (q.gambar) h += '<img class="qimg" src="' + q.gambar + '" alt="Gambar soal">';
-    h += opsiHtml(q, i, false);
-    if (q.skrip) h += '<div class="skrip"><b>スクリプト</b><br>' + eh(q.skrip) + "</div>";
-    if (q.penjelasan) h += '<div class="pjl">💡 ' + eh(q.penjelasan) + "</div>";
-    h += "</div>";
+  if (CFG.pb) {
+    h += '<h3 style="margin:14px 0 10px;color:#9d2f5e">Pembahasan</h3>';
+    for (var i = 0; i < soal.length; i++) {
+      var q = soal[i], b = jwb[i] === q.kunci;
+      h += '<div class="card"><div class="qno">問' + (i + 1) +
+        '<span class="tag ' + (b ? "tag-b" : "tag-s") + '">' + (b ? "✓ Benar" : jwb[i] === undefined ? "— Tidak dijawab" : "✕ Salah") + "</span></div>" +
+        '<div class="qtxt">' + eh(q.pertanyaan) + "</div>";
+      if (q.gambar) h += '<img class="qimg" src="' + q.gambar + '" alt="Gambar soal">';
+      h += opsiHtml(q, i, false);
+      if (q.skrip) h += '<div class="skrip"><b>スクリプト</b><br>' + eh(q.skrip) + "</div>";
+      if (q.penjelasan) h += '<div class="pjl">💡 ' + eh(q.penjelasan) + "</div>";
+      h += "</div>";
+    }
+  } else {
+    h += '<div class="card muted tengah">Pembahasan tidak ditampilkan untuk ujian ini.</div>';
   }
   el("app").innerHTML = h;
 }
