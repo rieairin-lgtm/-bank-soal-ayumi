@@ -1,0 +1,4 @@
+Letakkan file audio ujian listening (MP3) di folder ini.
+
+Cara: di GitHub buka folder "audio" -> Add file -> Upload files -> unggah MP3 -> Commit.
+Lalu saat membuat link ujian di guru.html, isi kolom "File audio" dengan: audio/nama-file.mp3

@@ -44,8 +44,10 @@ Itulah alamat yang dibagikan ke murid. Halaman guru ada di `.../bank-soal-ayumi/
 ## Alur ujian (lewat link dari guru)
 
 1. Guru membuka `guru.html` → masukkan **PIN guru** (bawaan: `ayumi123` — ganti di `data/config.json`).
-2. Di kartu **🔗 Buat Link Ujian**, pilih judul, level, kategori, jumlah soal, acak, dan apakah pembahasan ditampilkan → klik **Buat link** → salin/kirim via WhatsApp.
-3. Murid membuka **link tersebut** (halaman utama tanpa link hanya menampilkan pesan "minta link dari guru") → tulis nama → kerjakan → nilai muncul otomatis → kirim hasil ke guru via WhatsApp/salin/screenshot.
+2. Di kartu **🔗 Buat Link Ujian**, atur: judul, level, kategori, jumlah soal, acak, pembahasan, **waktu (menit)**, dan **file audio 聴解** (opsional) → klik **Buat link** → salin/kirim via WhatsApp.
+   - Acuan waktu JLPT: N5 語彙20/文法読解40/聴解30 · N4 25/55/35 · N3 30/70/40 · N2 105/50 · N1 110/55 (menit).
+   - Audio: unggah MP3 ke folder `audio/` di GitHub, lalu tulis namanya, mis. `audio/uts-n4.mp3`. Audio diputar **satu kali** tanpa jeda; saat audio selesai, jawaban murid **otomatis terkumpul**. Waktu habis juga mengumpulkan otomatis.
+3. Murid membuka **link tersebut** (halaman utama tanpa link hanya menampilkan pesan "minta link dari guru") → isi **nama + kelas/angkatan** → kerjakan → nilai muncul otomatis → kirim hasil ke guru via WhatsApp/salin/screenshot.
 
 ### Mengganti PIN guru
 Buka file `data/config.json` di GitHub → klik ikon pensil (Edit) → ubah nilai `pinGuru` → Commit changes.

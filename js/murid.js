@@ -1,6 +1,6 @@
 var H = ["A", "B", "C", "D"];
 var SALT = "ayumi-sakura-2026";
-var BANK = [], soal = [], jwb = {}, nama = "";
+var BANK = [], soal = [], jwb = {}, nama = "", kelas = "";
 var CFG = null;
 
 function eh(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -52,9 +52,11 @@ function renderAwal() {
   el("subjudul").textContent = CFG.judul || "Ujian Bahasa Jepang";
   var h = '<div class="card">' +
     '<h2 style="margin-bottom:4px;color:#9d2f5e">' + eh(CFG.judul || "Ujian Bahasa Jepang") + "</h2>" +
-    '<p class="muted" style="margin-bottom:12px">' + infoCakupan() + " · " + jml + ' soal · pilihan ganda</p>' +
+    '<p class="muted" style="margin-bottom:12px">' + infoCakupan() + " · " + jml + ' soal · pilihan ganda' + (CFG.w ? " · waktu " + CFG.w + " menit" : "") + (CFG.au ? " · 🔊 dengan audio" : "") + '</p>' +
+    (CFG.au ? '<div style="background:#fff7fb;border:1px solid #f3b8d2;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;color:#9d2f5e"><b>Perhatian:</b> audio diputar <b>satu kali</b> dan tidak bisa dijeda atau diulang. Begitu audio selesai, jawaban otomatis dikumpulkan — siapkan tempat yang tenang sebelum mulai.</div>' : "") +
     (p.length ? (
-      '<label>Nama peserta</label><input type="text" id="nm" placeholder="Nama lengkap" style="margin-bottom:14px">' +
+      '<label>Nama peserta</label><input type="text" id="nm" placeholder="Nama lengkap" style="margin-bottom:10px">' +
+      '<label>Kelas / angkatan</label><input type="text" id="kls" placeholder="mis. Kelas N4 Pagi / Angkatan 12" style="margin-bottom:14px">' +
       '<div style="text-align:right"><button class="btn btn-pink" onclick="mulai()">Mulai ujian</button></div>'
     ) : '<p class="muted">Belum ada soal untuk cakupan ini. Hubungi gurumu ya.</p>') +
     "</div>";
@@ -64,13 +66,72 @@ function renderAwal() {
 function mulai() {
   var n = el("nm").value.trim();
   if (!n) { alert("Tulis nama dulu ya"); return; }
-  nama = n;
+  var k = el("kls").value.trim();
+  if (!k) { alert("Tulis kelas/angkatan dulu ya"); return; }
+  nama = n; kelas = k;
   var p = pool();
   soal = CFG.acak ? acak(p.slice()) : p.slice();
   if (CFG.jml !== "Semua") soal = soal.slice(0, parseInt(CFG.jml, 10));
   jwb = {};
   renderUjian();
+  if (CFG.w) mulaiTimer(CFG.w * 60);
+  if (CFG.au) mulaiAudio();
   window.scrollTo(0, 0);
+}
+
+var aud = null;
+function fmt(d) { d = Math.max(0, Math.round(d)); var m = Math.floor(d / 60); var s = d % 60; return m + ":" + (s < 10 ? "0" : "") + s; }
+function mulaiAudio() {
+  aud = new Audio(CFG.au);
+  aud.preload = "auto";
+  aud.ontimeupdate = function () {
+    var t = el("audSta");
+    if (t && aud.duration) t.textContent = "🔊 " + fmt(aud.currentTime) + " / " + fmt(aud.duration);
+  };
+  aud.onended = function () {
+    var t = el("audSta");
+    if (t) t.textContent = "🔊 selesai";
+    clearInterval(timerId);
+    alert("Audio selesai. Jawaban dikumpulkan otomatis.");
+    renderHasil();
+    window.scrollTo(0, 0);
+  };
+  aud.onerror = function () {
+    var t = el("audSta");
+    if (t) { t.textContent = "⚠ audio gagal dimuat"; t.style.color = "#e11d48"; }
+    alert("File audio gagal dimuat. Lanjutkan mengerjakan dan kumpulkan secara manual, lalu laporkan ke gurumu.");
+  };
+  // Cegah jeda: jika terjeda oleh sistem, lanjutkan kembali
+  aud.onpause = function () { if (!aud.ended && aud.currentTime > 0) { aud.play().catch(function () {}); } };
+  aud.play().catch(function () {
+    var t = el("audSta");
+    if (t) t.textContent = "⚠ ketuk layar untuk memulai audio";
+    document.body.addEventListener("click", function sekali() {
+      document.body.removeEventListener("click", sekali);
+      aud.play().catch(function () {});
+    });
+  });
+}
+
+var sisaDetik = 0, timerId = null;
+function mulaiTimer(detik) {
+  sisaDetik = detik;
+  clearInterval(timerId);
+  timerId = setInterval(function () {
+    sisaDetik--;
+    var t = el("timer");
+    if (t) {
+      var m = Math.floor(sisaDetik / 60), d = sisaDetik % 60;
+      t.textContent = "⏱ " + m + ":" + (d < 10 ? "0" : "") + d;
+      if (sisaDetik <= 60) t.style.color = "#e11d48";
+    }
+    if (sisaDetik <= 0) {
+      clearInterval(timerId);
+      alert("Waktu habis! Jawaban dikumpulkan otomatis.");
+      renderHasil();
+      window.scrollTo(0, 0);
+    }
+  }, 1000);
 }
 
 function opsiHtml(q, i, modeUjian) {
@@ -93,7 +154,9 @@ function opsiHtml(q, i, modeUjian) {
 }
 
 function renderUjian() {
-  var h = '<div class="bar"><span>' + eh(nama) + ' — terjawab <b id="cnt">0</b> / ' + soal.length + "</span>" +
+  var h = '<div class="bar"><span>' + eh(nama) + ' (' + eh(kelas) + ') — terjawab <b id="cnt">0</b> / ' + soal.length + "</span>" +
+    (CFG.au ? '<b id="audSta" style="color:#9d2f5e">🔊 memuat…</b>' : "") +
+    (CFG.w ? '<b id="timer" style="color:#9d2f5e">⏱ ' + CFG.w + ':00</b>' : "") +
     '<button class="btn btn-tua btn-kecil" onclick="kumpul()">Kumpulkan</button></div>';
   for (var i = 0; i < soal.length; i++) {
     var q = soal[i];
@@ -119,6 +182,8 @@ function pilih(qi, oi) {
 function kumpul() {
   var blm = soal.length - Object.keys(jwb).length;
   if (blm > 0 && !confirm("Masih ada " + blm + " soal belum dijawab. Tetap kumpulkan?")) return;
+  clearInterval(timerId);
+  if (aud) { aud.onpause = null; aud.onended = null; aud.pause(); }
   renderHasil();
   window.scrollTo(0, 0);
 }
@@ -129,7 +194,7 @@ function renderHasil() {
   var nilai = Math.round((benar / soal.length) * 100);
   var tgl = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
   var ring = "HASIL UJIAN AYUMI\n" + (CFG.judul ? "Ujian: " + CFG.judul + "\n" : "") +
-    "Nama: " + nama + "\nTanggal: " + tgl + "\nCakupan: " + infoCakupan() +
+    "Nama: " + nama + "\nKelas: " + kelas + "\nTanggal: " + tgl + "\nCakupan: " + infoCakupan() +
     "\nBenar: " + benar + "/" + soal.length + "\nNilai: " + nilai;
   var warna = nilai >= 70 ? "hij" : nilai >= 50 ? "kun" : "mer";
   var h = '<div class="card tengah"><div class="eyebrow" style="color:#9d2f5e">Hasil — ' + eh(nama) + "</div>" +

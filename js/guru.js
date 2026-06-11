@@ -95,7 +95,11 @@ function render() {
     '<div class="row" style="margin-bottom:10px">' +
     '<div><label>Level</label><select id="lLevel"><option>Semua</option><option>N5</option><option selected>N4</option><option>N3</option><option>N2</option><option>N1</option></select></div>' +
     '<div><label>Kategori</label><select id="lKat"><option>Semua</option><option>文字・語彙</option><option>文法</option><option>読解</option><option>聴解</option></select></div>' +
-    '<div><label>Jumlah soal</label><select id="lJml"><option>Semua</option><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option></select></div></div>' +
+    '<div><label>Jumlah soal</label><select id="lJml"><option>Semua</option><option>5</option><option>10</option><option>15</option><option>20</option><option>30</option><option>40</option><option>50</option><option>60</option></select></div>' +
+    '<div><label>Waktu (menit, 0 = bebas)</label><input type="number" id="lWaktu" min="0" max="180" value="0"></div></div>' +
+    '<div style="margin-bottom:10px"><label>File audio 聴解 (opsional — diputar 1x, selesai = otomatis terkumpul)</label>' +
+    '<input type="text" id="lAudio" placeholder="mis. audio/uts-n4-choukai.mp3 (unggah MP3 ke folder audio/ di GitHub dulu)"></div>' +
+    '<div class="muted" style="margin-bottom:10px;font-size:12px">Acuan JLPT: N5 語彙 20m · 文法読解 40m · 聴解 30m | N4 語彙 25m · 文法読解 55m · 聴解 35m | N3 語彙 30m · 文法読解 70m · 聴解 40m | N2 知識読解 105m · 聴解 50m | N1 知識読解 110m · 聴解 55m</div>' +
     '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">' +
     '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569"><input type="checkbox" id="lAcak" checked style="width:16px;height:16px;accent-color:#db2777">Acak urutan soal</label>' +
     '<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569"><input type="checkbox" id="lPb" checked style="width:16px;height:16px;accent-color:#db2777">Tampilkan pembahasan setelah selesai</label></div>' +
@@ -322,7 +326,9 @@ function buatLink() {
     kt: el("lKat").value,
     jml: el("lJml").value,
     acak: el("lAcak").checked,
-    pb: el("lPb").checked
+    pb: el("lPb").checked,
+    w: Math.max(0, parseInt(el("lWaktu").value, 10) || 0),
+    au: el("lAudio").value.trim()
   };
   var jumlahCocok = soal.filter(function (s) {
     return (cfg.lv === "Semua" || s.level === cfg.lv) && (cfg.kt === "Semua" || s.kategori === cfg.kt);
