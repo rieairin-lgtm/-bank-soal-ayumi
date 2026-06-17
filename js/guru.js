@@ -4,6 +4,39 @@ var KATEGORI = ["文字・語彙", "文法", "読解", "聴解"];
 var KUNCI_LS = "bsa-soal-draf";
 var SALT = "ayumi-sakura-2026";
 var PIN_GURU = "ayumi123";
+
+// Struktur 問題 per kategori (N3)
+var MONDAI = {
+  "文字・語彙": [
+    { no: "問題１", kata: "（＿＿＿）のことばの読み方として最もよいものを、１・２・３・４から一つえらびなさい。" },
+    { no: "問題２", kata: "（＿＿＿）のことばを漢字で書くとき、最もよいものを、１・２・３・４から一つえらびなさい。" },
+    { no: "問題３", kata: "（　　）に入れるのに最もよいものを、１・２・３・４から一つえらびなさい。" },
+    { no: "問題５", kata: "つぎのことばの使い方として最もよいものを、１・２・３・４から一つえらびなさい。" }
+  ],
+  "文法": [
+    { no: "問題１", kata: "つぎの文の（　　）に入れるのに最もよいものを、１・２・３・４から一つえらびなさい。" },
+    { no: "問題２", kata: "つぎの文の＿★＿に入る最もよいものを、１・２・３・４から一つえらびなさい。" },
+    { no: "問題３", kata: "つぎの文章を読んで、文章全体の内容を考えて、（　）の中に入る最もよいものを、１・２・３・４から一つえらびなさい。" }
+  ],
+  "読解": [
+    { no: "問題４", kata: "つぎの(1)から(4)の文章を読んで、質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。" },
+    { no: "問題５", kata: "つぎの(1)と(2)の文章を読んで、質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。" },
+    { no: "問題６", kata: "つぎの文章を読んで、質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。" },
+    { no: "問題７", kata: "右のページを見て、下の質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。" }
+  ],
+  "聴解": [
+    { no: "問題１", kata: "まず質問を聞いてください。それから話を聞いて、問題用紙の1から4のなかから、最もよいものを一つ選んでください。" },
+    { no: "問題２", kata: "まず質問を聞いてください。そのあと、問題用紙を見てください。読む時間があります。それから話を聞いて、1から4のなかから、最もよいものを一つ選んでください。" },
+    { no: "問題３", kata: "問題用紙に何もいんさつされていません。まず話を聞いてください。それから、質問とせんたくしを聞いて、1から4のなかから、最もよいものを一つえらんでください。" },
+    { no: "問題４", kata: "えを見ながら質問を聞いてください。やじるし（➡）の人は何といいますか。1から3の中から、最もよいものを一つえらんでください。" },
+    { no: "問題５", kata: "問題用紙に何もいんさつされていません。まず文を聞いてください。それから、その返事を聞いて、1から３の中から、最もよいものを一つえらんでください。" }
+  ]
+};
+
+function getMondaiList(kat) {
+  return MONDAI[kat] || [];
+}
+
 function hsh(s) { var h = 5381; for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) >>> 0; } return h.toString(36); }
 var soal = [];
 var editId = null;
@@ -60,7 +93,6 @@ function cekPin() {
   }
 }
 
-// Muat: draf di browser > soal.json yang dipublikasikan
 function init() {
   var draf = null;
   try { draf = localStorage.getItem(KUNCI_LS); } catch (e) {}
@@ -81,9 +113,27 @@ function selectHtml(id, daftar, terpilih) {
   return h + "</select>";
 }
 
+function mondaiSelectHtml(kat, terpilih) {
+  var list = getMondaiList(kat);
+  if (!list.length) return '<select id="fMondai"><option value="">—</option></select>';
+  var h = '<select id="fMondai">';
+  for (var i = 0; i < list.length; i++) {
+    var val = list[i].no;
+    h += '<option value="' + val + '"' + (val === terpilih ? " selected" : "") + ">" + val + "</option>";
+  }
+  return h + "</select>";
+}
+
 function render() {
   el("subjudul").textContent = soal.length + " soal di draf";
   var f = ambilForm();
+  var mondaiList = getMondaiList(f.kategori);
+  var mondaiTerpilih = f.mondai || (mondaiList.length ? mondaiList[0].no : "");
+  var kataPerintah = "";
+  for (var mi = 0; mi < mondaiList.length; mi++) {
+    if (mondaiList[mi].no === mondaiTerpilih) { kataPerintah = mondaiList[mi].kata; break; }
+  }
+
   var h = '<div class="card" style="background:#fff7fb">' +
     '<b style="color:#9d2f5e">Alur kerja:</b> <span class="muted">tambah/ubah soal di bawah → klik <b>💾 Unduh soal.json</b> → ganti file <code>data/soal.json</code> di repository GitHub → tunggu ±1 menit, soal baru tampil di halaman murid.</span></div>';
 
@@ -110,8 +160,18 @@ function render() {
   h += '<div class="card"><h3 style="margin-bottom:10px">' + (editId ? "Edit soal" : "Tambah soal baru") + "</h3>" +
     '<div class="row" style="margin-bottom:10px">' +
     "<div><label>Level</label>" + selectHtml("fLevel", LEVELS, f.level) + "</div>" +
-    "<div><label>Kategori</label>" + selectHtml("fKat", KATEGORI, f.kategori) + "</div></div>" +
-    "<label>Pertanyaan</label><textarea id=\"fTanya\" placeholder=\"例：あした　ともだち（　　）えいがを　みます。\">" + eh(f.pertanyaan) + "</textarea>" +
+    "<div><label>Kategori</label>" + selectHtml("fKat", KATEGORI, f.kategori) + "</div>" +
+    '<div><label>問題</label>' + mondaiSelectHtml(f.kategori, mondaiTerpilih) + '</div></div>';
+
+  // Tampilkan kata perintah jika ada
+  if (kataPerintah) {
+    h += '<div id="blokKataPerintah" style="background:#fff7fb;border:1px solid #f3b8d2;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#9d2f5e">' +
+      '<b>' + mondaiTerpilih + '</b> — ' + eh(kataPerintah) + '</div>';
+  } else {
+    h += '<div id="blokKataPerintah" style="display:none"></div>';
+  }
+
+  h += "<label>Pertanyaan</label><textarea id=\"fTanya\" placeholder=\"例：あした　ともだち（　　）えいがを　みます。\">" + eh(f.pertanyaan) + "</textarea>" +
     '<div id="blokSkrip" style="margin-top:10px;display:' + (f.kategori === "聴解" ? "block" : "none") + '"><label>スクリプト / skrip audio (opsional, untuk 聴解)</label>' +
     '<textarea id="fSkrip" placeholder="Teks percakapan yang akan dibacakan">' + eh(f.skrip) + "</textarea></div>" +
     '<div style="margin-top:10px"><label>Gambar utama soal (opsional)</label><div id="blokGambar"></div></div>' +
@@ -137,7 +197,8 @@ function render() {
     for (var i = 0; i < soal.length; i++) {
       var s = soal[i];
       h += '<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:6px">' +
-        '<div><span class="muted">#' + (i + 1) + '</span> <span class="lvl">' + s.level + '</span><span class="kat">' + s.kategori + "</span></div>" +
+        '<div><span class="muted">#' + (i + 1) + '</span> <span class="lvl">' + s.level + '</span><span class="kat">' + s.kategori + "</span>" +
+        (s.mondai ? '<span class="kat" style="background:#fdf2f7;color:#9d2f5e;border:1px solid #f3b8d2">' + s.mondai + "</span>" : "") + "</div>" +
         '<div style="display:flex;gap:6px"><button class="btn btn-putih btn-kecil" onclick="mulaiEdit(' + i + ')">Edit</button>' +
         '<button class="btn btn-merah btn-kecil" onclick="hapus(' + i + ')">Hapus</button></div></div>' +
         '<div class="qtxt">' + eh(s.pertanyaan) + "</div>";
@@ -156,17 +217,55 @@ function render() {
     }
   }
   el("app").innerHTML = h;
-  el("fKat").onchange = function () { el("blokSkrip").style.display = this.value === "聴解" ? "block" : "none"; };
+
+  // Event listener
+  el("fKat").onchange = function () {
+    el("blokSkrip").style.display = this.value === "聴解" ? "block" : "none";
+    formCache.kategori = this.value;
+    formCache.mondai = "";
+    // Update dropdown 問題
+    var ms = getMondaiList(this.value);
+    var newMondai = ms.length ? ms[0].no : "";
+    formCache.mondai = newMondai;
+    var fMondaiEl = el("fMondai");
+    fMondaiEl.innerHTML = mondaiSelectHtml(this.value, newMondai).replace(/^<select[^>]*>/, "").replace(/<\/select>$/, "");
+    updateKataPerintah(this.value, newMondai);
+  };
+  el("fMondai").onchange = function () {
+    formCache.mondai = this.value;
+    updateKataPerintah(el("fKat").value, this.value);
+  };
+
   renderGambarUtama();
   renderOpsi(f);
 }
 
-var formCache = { level: "N4", kategori: "聴解", pertanyaan: "", skrip: "", opsi: ["", "", "", ""], kunci: 0, penjelasan: "" };
+function updateKataPerintah(kat, mondaiNo) {
+  var list = getMondaiList(kat);
+  var kata = "";
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].no === mondaiNo) { kata = list[i].kata; break; }
+  }
+  var blok = el("blokKataPerintah");
+  if (blok) {
+    if (kata) {
+      blok.style.display = "";
+      blok.innerHTML = '<b>' + mondaiNo + '</b> — ' + eh(kata);
+    } else {
+      blok.style.display = "none";
+      blok.innerHTML = "";
+    }
+  }
+}
+
+var formCache = { level: "N4", kategori: "文字・語彙", mondai: "問題１", pertanyaan: "", skrip: "", opsi: ["", "", "", ""], kunci: 0, penjelasan: "" };
 function ambilForm() { return formCache; }
 function bacaForm() {
+  var mondaiEl = el("fMondai");
   formCache = {
     level: el("fLevel").value,
     kategori: el("fKat").value,
+    mondai: mondaiEl ? mondaiEl.value : "",
     pertanyaan: el("fTanya").value,
     skrip: el("fSkrip") ? el("fSkrip").value : "",
     opsi: [0, 1, 2, 3].map(function (i) { var e = el("fOpsi" + i); return e ? e.value : ""; }),
@@ -219,7 +318,7 @@ function simpanSoal() {
   for (var i = 0; i < 4; i++) if (!f.opsi[i].trim() && !formOpsiGambar[i]) return toast("Pilihan " + H[i] + " masih kosong (isi teks atau gambar)");
   var rec = {
     id: editId || Date.now().toString(),
-    level: f.level, kategori: f.kategori, pertanyaan: f.pertanyaan, skrip: f.skrip,
+    level: f.level, kategori: f.kategori, mondai: f.mondai, pertanyaan: f.pertanyaan, skrip: f.skrip,
     opsi: f.opsi, opsiGambar: formOpsiGambar.slice(), gambar: formGambar,
     kunci: f.kunci, penjelasan: f.penjelasan
   };
@@ -231,7 +330,7 @@ function simpanSoal() {
     toast("Soal ditambahkan");
   }
   editId = null;
-  formCache = { level: f.level, kategori: f.kategori, pertanyaan: "", skrip: "", opsi: ["", "", "", ""], kunci: 0, penjelasan: "" };
+  formCache = { level: f.level, kategori: f.kategori, mondai: f.mondai, pertanyaan: "", skrip: "", opsi: ["", "", "", ""], kunci: 0, penjelasan: "" };
   formGambar = null; formOpsiGambar = [null, null, null, null];
   simpanDraf(); render();
 }
@@ -239,14 +338,14 @@ function simpanSoal() {
 function mulaiEdit(i) {
   var s = soal[i];
   editId = s.id;
-  formCache = { level: s.level, kategori: s.kategori, pertanyaan: s.pertanyaan, skrip: s.skrip || "", opsi: s.opsi.slice(), kunci: s.kunci, penjelasan: s.penjelasan || "" };
+  formCache = { level: s.level, kategori: s.kategori, mondai: s.mondai || "", pertanyaan: s.pertanyaan, skrip: s.skrip || "", opsi: s.opsi.slice(), kunci: s.kunci, penjelasan: s.penjelasan || "" };
   formGambar = s.gambar || null;
   formOpsiGambar = (s.opsiGambar || [null, null, null, null]).slice();
   render(); window.scrollTo(0, 0);
 }
 function batalEdit() {
   editId = null;
-  formCache = { level: "N4", kategori: "聴解", pertanyaan: "", skrip: "", opsi: ["", "", "", ""], kunci: 0, penjelasan: "" };
+  formCache = { level: "N4", kategori: "文字・語彙", mondai: "問題１", pertanyaan: "", skrip: "", opsi: ["", "", "", ""], kunci: 0, penjelasan: "" };
   formGambar = null; formOpsiGambar = [null, null, null, null];
   render();
 }
@@ -302,9 +401,10 @@ function imporExcel(inp) {
         if (!tanya || opsi.some(function (o) { return !o; }) || !(kh in peta)) { lewat++; return; }
         var lv = kolom(row, "level").toUpperCase(); if (LEVELS.indexOf(lv) < 0) lv = "N4";
         var kt = kolom(row, "kategori"); if (KATEGORI.indexOf(kt) < 0) kt = "文法";
+        var md = kolom(row, "mondai");
         soal.push({
           id: Date.now().toString() + "-" + idx,
-          level: lv, kategori: kt, pertanyaan: tanya, skrip: kolom(row, "skrip"),
+          level: lv, kategori: kt, mondai: md, pertanyaan: tanya, skrip: kolom(row, "skrip"),
           opsi: opsi, opsiGambar: [null, null, null, null], gambar: null,
           kunci: peta[kh], penjelasan: kolom(row, "penjelasan")
         });
@@ -317,7 +417,6 @@ function imporExcel(inp) {
   r.readAsArrayBuffer(f);
   inp.value = "";
 }
-
 
 function buatLink() {
   var cfg = {

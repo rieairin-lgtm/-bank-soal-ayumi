@@ -3,6 +3,39 @@ var SALT = "ayumi-sakura-2026";
 var BANK = [], soal = [], jwb = {}, nama = "", kelas = "";
 var CFG = null;
 
+// Kata perintah per 問題
+var MONDAI_KATA = {
+  "文字・語彙": {
+    "問題１": "（＿＿＿）のことばの読み方として最もよいものを、１・２・３・４から一つえらびなさい。",
+    "問題２": "（＿＿＿）のことばを漢字で書くとき、最もよいものを、１・２・３・４から一つえらびなさい。",
+    "問題３": "（　　）に入れるのに最もよいものを、１・２・３・４から一つえらびなさい。",
+    "問題５": "つぎのことばの使い方として最もよいものを、１・２・３・４から一つえらびなさい。"
+  },
+  "文法": {
+    "問題１": "つぎの文の（　　）に入れるのに最もよいものを、１・２・３・４から一つえらびなさい。",
+    "問題２": "つぎの文の＿★＿に入る最もよいものを、１・２・３・４から一つえらびなさい。",
+    "問題３": "つぎの文章を読んで、文章全体の内容を考えて、（　）の中に入る最もよいものを、１・２・３・４から一つえらびなさい。"
+  },
+  "読解": {
+    "問題４": "つぎの(1)から(4)の文章を読んで、質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。",
+    "問題５": "つぎの(1)と(2)の文章を読んで、質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。",
+    "問題６": "つぎの文章を読んで、質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。",
+    "問題７": "右のページを見て、下の質問に答えなさい。答えは、１・２・３・４から最もよいものを一つえらびなさい。"
+  },
+  "聴解": {
+    "問題１": "まず質問を聞いてください。それから話を聞いて、問題用紙の1から4のなかから、最もよいものを一つ選んでください。",
+    "問題２": "まず質問を聞いてください。そのあと、問題用紙を見てください。読む時間があります。それから話を聞いて、1から4のなかから、最もよいものを一つ選んでください。",
+    "問題３": "問題用紙に何もいんさつされていません。まず話を聞いてください。それから、質問とせんたくしを聞いて、1から4のなかから、最もよいものを一つえらんでください。",
+    "問題４": "えを見ながら質問を聞いてください。やじるし（➡）の人は何といいますか。1から3の中から、最もよいものを一つえらんでください。",
+    "問題５": "問題用紙に何もいんさつされていません。まず文を聞いてください。それから、その返事を聞いて、1から３の中から、最もよいものを一つえらんでください。"
+  }
+};
+
+function getKataPerintah(kat, mondai) {
+  if (!mondai || !MONDAI_KATA[kat]) return "";
+  return MONDAI_KATA[kat][mondai] || "";
+}
+
 function eh(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function acak(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 function el(id) { return document.getElementById(id); }
@@ -101,7 +134,6 @@ function mulaiAudio() {
     if (t) { t.textContent = "⚠ audio gagal dimuat"; t.style.color = "#e11d48"; }
     alert("File audio gagal dimuat. Lanjutkan mengerjakan dan kumpulkan secara manual, lalu laporkan ke gurumu.");
   };
-  // Cegah jeda: jika terjeda oleh sistem, lanjutkan kembali
   aud.onpause = function () { if (!aud.ended && aud.currentTime > 0) { aud.play().catch(function () {}); } };
   aud.play().catch(function () {
     var t = el("audSta");
@@ -158,13 +190,40 @@ function renderUjian() {
     (CFG.au ? '<b id="audSta" style="color:#9d2f5e">🔊 memuat…</b>' : "") +
     (CFG.w ? '<b id="timer" style="color:#9d2f5e">⏱ ' + CFG.w + ':00</b>' : "") +
     '<button class="btn btn-tua btn-kecil" onclick="kumpul()">Kumpulkan</button></div>';
+
+  // Kelompokkan soal per 問題
+  var kelompok = []; // [{mondai, kata, soalList:[{soal, idxGlobal}]}]
+  var mondaiSudah = {};
   for (var i = 0; i < soal.length; i++) {
     var q = soal[i];
-    h += '<div class="card"><div class="qno">問' + (i + 1) + ' <span class="lvl">' + q.level + '</span><span class="kat">' + q.kategori + "</span></div>" +
-      '<div class="qtxt">' + eh(q.pertanyaan) + "</div>";
-    if (q.gambar) h += '<img class="qimg" src="' + q.gambar + '" alt="Gambar soal">';
-    h += opsiHtml(q, i, true) + "</div>";
+    var mk = (q.mondai || "") + "|" + (q.kategori || "");
+    if (!mondaiSudah[mk]) {
+      mondaiSudah[mk] = kelompok.length;
+      kelompok.push({ mondai: q.mondai || "", kategori: q.kategori || "", kata: getKataPerintah(q.kategori, q.mondai), soalList: [] });
+    }
+    kelompok[mondaiSudah[mk]].soalList.push({ soal: q, idx: i });
   }
+
+  for (var g = 0; g < kelompok.length; g++) {
+    var grp = kelompok[g];
+    // Header 問題
+    if (grp.mondai) {
+      h += '<div style="margin:18px 0 6px;padding:10px 14px;background:linear-gradient(90deg,#fdf2f7,#fff7fb);border-left:4px solid #db2777;border-radius:0 8px 8px 0">' +
+        '<div style="font-weight:700;color:#9d2f5e;font-size:15px">' + eh(grp.mondai) + '</div>' +
+        (grp.kata ? '<div style="font-size:12px;color:#64748b;margin-top:2px">' + eh(grp.kata) + '</div>' : '') +
+        '</div>';
+    }
+    for (var si = 0; si < grp.soalList.length; si++) {
+      var item = grp.soalList[si];
+      var q2 = item.soal;
+      var idx = item.idx;
+      h += '<div class="card"><div class="qno">問' + (idx + 1) + ' <span class="lvl">' + q2.level + '</span><span class="kat">' + q2.kategori + "</span></div>" +
+        '<div class="qtxt">' + eh(q2.pertanyaan) + "</div>";
+      if (q2.gambar) h += '<img class="qimg" src="' + q2.gambar + '" alt="Gambar soal">';
+      h += opsiHtml(q2, idx, true) + "</div>";
+    }
+  }
+
   h += '<div style="text-align:right;margin-bottom:30px"><button class="btn btn-tua" onclick="kumpul()">Kumpulkan</button></div>';
   el("app").innerHTML = h;
 }
@@ -207,16 +266,37 @@ function renderHasil() {
     '<div class="muted" style="margin-top:8px">Kirim atau screenshot hasil ini untuk gurumu ya 🌸</div></div>';
   if (CFG.pb) {
     h += '<h3 style="margin:14px 0 10px;color:#9d2f5e">Pembahasan</h3>';
+    // Pembahasan juga dikelompokkan per 問題
+    var kelompok2 = [];
+    var mondaiSudah2 = {};
     for (var i = 0; i < soal.length; i++) {
-      var q = soal[i], b = jwb[i] === q.kunci;
-      h += '<div class="card"><div class="qno">問' + (i + 1) +
-        '<span class="tag ' + (b ? "tag-b" : "tag-s") + '">' + (b ? "✓ Benar" : jwb[i] === undefined ? "— Tidak dijawab" : "✕ Salah") + "</span></div>" +
-        '<div class="qtxt">' + eh(q.pertanyaan) + "</div>";
-      if (q.gambar) h += '<img class="qimg" src="' + q.gambar + '" alt="Gambar soal">';
-      h += opsiHtml(q, i, false);
-      if (q.skrip) h += '<div class="skrip"><b>スクリプト</b><br>' + eh(q.skrip) + "</div>";
-      if (q.penjelasan) h += '<div class="pjl">💡 ' + eh(q.penjelasan) + "</div>";
-      h += "</div>";
+      var q = soal[i];
+      var mk = (q.mondai || "") + "|" + (q.kategori || "");
+      if (!mondaiSudah2[mk]) {
+        mondaiSudah2[mk] = kelompok2.length;
+        kelompok2.push({ mondai: q.mondai || "", kategori: q.kategori || "", soalList: [] });
+      }
+      kelompok2[mondaiSudah2[mk]].soalList.push({ soal: q, idx: i });
+    }
+    for (var g2 = 0; g2 < kelompok2.length; g2++) {
+      var grp2 = kelompok2[g2];
+      if (grp2.mondai) {
+        h += '<div style="margin:14px 0 6px;padding:8px 12px;background:#fdf2f7;border-left:4px solid #db2777;border-radius:0 8px 8px 0;font-weight:700;color:#9d2f5e">' + eh(grp2.mondai) + '</div>';
+      }
+      for (var si2 = 0; si2 < grp2.soalList.length; si2++) {
+        var item2 = grp2.soalList[si2];
+        var q3 = item2.soal;
+        var idx2 = item2.idx;
+        var b = jwb[idx2] === q3.kunci;
+        h += '<div class="card"><div class="qno">問' + (idx2 + 1) +
+          '<span class="tag ' + (b ? "tag-b" : "tag-s") + '">' + (b ? "✓ Benar" : jwb[idx2] === undefined ? "— Tidak dijawab" : "✕ Salah") + "</span></div>" +
+          '<div class="qtxt">' + eh(q3.pertanyaan) + "</div>";
+        if (q3.gambar) h += '<img class="qimg" src="' + q3.gambar + '" alt="Gambar soal">';
+        h += opsiHtml(q3, idx2, false);
+        if (q3.skrip) h += '<div class="skrip"><b>スクリプト</b><br>' + eh(q3.skrip) + "</div>";
+        if (q3.penjelasan) h += '<div class="pjl">💡 ' + eh(q3.penjelasan) + "</div>";
+        h += "</div>";
+      }
     }
   } else {
     h += '<div class="card muted tengah">Pembahasan tidak ditampilkan untuk ujian ini.</div>';
