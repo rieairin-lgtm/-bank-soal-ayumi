@@ -1,0 +1,68 @@
+[
+ {
+  "id": "c1",
+  "level": "N4",
+  "kategori": "文法",
+  "pertanyaan": "あした　ともだち（　　）えいがを　みます。",
+  "skrip": "",
+  "opsi": [
+   "は",
+   "と",
+   "を",
+   "へ"
+  ],
+  "opsiGambar": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "gambar": null,
+  "kunci": 1,
+  "penjelasan": "「と」menunjukkan partner kegiatan."
+ },
+ {
+  "id": "c2",
+  "level": "N4",
+  "kategori": "文字・語彙",
+  "pertanyaan": "「特別」のよみかたはどれですか。",
+  "skrip": "",
+  "opsi": [
+   "とくべつ",
+   "とくべち",
+   "どくべつ",
+   "とくへつ"
+  ],
+  "opsiGambar": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "gambar": null,
+  "kunci": 0,
+  "penjelasan": ""
+ },
+ {
+  "id": "c3",
+  "level": "N4",
+  "kategori": "聴解",
+  "pertanyaan": "男の人はこのあとまず何をしますか。",
+  "skrip": "男：すみません、コピー機の使い方を教えてください。\n女：まず、ここにカードを入れてください。それからこのボタンを押してください。",
+  "opsi": [
+   "カードを入れる",
+   "ボタンを押す",
+   "紙を入れる",
+   "電源を入れる"
+  ],
+  "opsiGambar": [
+   null,
+   null,
+   null,
+   null
+  ],
+  "gambar": null,
+  "kunci": 0,
+  "penjelasan": "「まず」= pertama-tama."
+ }
+]
